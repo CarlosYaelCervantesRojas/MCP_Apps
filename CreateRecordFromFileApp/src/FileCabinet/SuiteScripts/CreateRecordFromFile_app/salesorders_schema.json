@@ -1,0 +1,36 @@
+{
+    "tools": [
+        {
+            "name": "createSalesOrder",
+            "description": "Create a sales order in NetSuite. entity (customer), otherrefnum (PO#), and at least one item are mandatory. itemIds and quantities must be parallel arrays of the same length — the item at position N in itemIds corresponds to the quantity at position N in quantities.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "entity": {
+                        "type": "string",
+                        "description": "The internal ID of the customer for the sales order"
+                    },
+                    "otherrefnum": {
+                        "type": "string",
+                        "description": "The purchase order number associated with the sales order, it must be unique for each sales order."
+                    },
+                    "itemIds": {
+                        "type": "string",
+                        "description": "Comma-separated list of internal item IDs to include on the sales order, in order. Example: '3021,3044,3050'"
+                    },
+                    "quantities": {
+                        "type": "string",
+                        "description": "Comma-separated list of quantities, parallel to itemIds by position. Example: '5,2,10'"
+                    }
+                },
+                "required": ["entity", "otherrefnum", "itemIds", "quantities"]
+            },
+            "annotations": {
+                "title": "Create Sales Order",
+                "readOnlyHint": false,
+                "idempotentHint": false,
+                "openWorldHint": false
+            }
+        }
+    ]
+}

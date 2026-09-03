@@ -1,0 +1,52 @@
+{
+    "tools": [
+        {
+            "name": "findCustomer",
+            "description": "Search for a customer by name (works for both person and company customers) or entity ID. Returns up to 5 ranked matches, exact matches first. Use this to resolve a customer name to an internal ID before calling createSalesOrder. Check the exactMatch field on each result: if the top result is not an exact match, or if multiple results are returned, confirm the correct customer with the user before proceeding.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Customer name (full name for individuals, company name for organizations) or entity ID to search for. Partial matches are supported."
+                    },
+                    "limit": {
+                        "type": "number",
+                        "description": "Maximum number of results to return. Defaults to 5, maximum 20."
+                    }
+                },
+                "required": ["name"]
+            },
+            "annotations": {
+                "title": "Find Customer",
+                "readOnlyHint": true,
+                "idempotentHint": true,
+                "openWorldHint": true
+            }
+        },
+        {
+            "name": "findItem",
+            "description": "Search for an inventory item by SKU or display name. Returns up to 5 ranked matches, exact matches first. Use this to resolve item names or SKUs to internal IDs before calling createSalesOrder. Check the exactMatch field on each result: if the top result is not an exact match, or if multiple results are returned, confirm the correct item with the user before proceeding. Only searches inventory items — non-inventory, service, and kit items are not included.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "search": {
+                        "type": "string",
+                        "description": "Item SKU or display name to search for. Partial matches are supported."
+                    },
+                    "limit": {
+                        "type": "number",
+                        "description": "Maximum number of results to return. Defaults to 5, maximum 20."
+                    }
+                },
+                "required": ["search"]
+            },
+            "annotations": {
+                "title": "Find Item",
+                "readOnlyHint": true,
+                "idempotentHint": true,
+                "openWorldHint": true
+            }
+        }
+    ]
+}

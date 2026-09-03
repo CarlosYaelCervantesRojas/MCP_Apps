@@ -1,4 +1,4 @@
 <manifest projecttype="ACCOUNTCUSTOMIZATION">
-    <projectname>CreateRecordFromFile</projectname>
+    <projectname>CreateRecordFromFileApp</projectname>
     <frameworkversion>1.0</frameworkversion>
 </manifest>

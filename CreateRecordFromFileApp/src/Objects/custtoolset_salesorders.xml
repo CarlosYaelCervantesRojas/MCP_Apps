@@ -1,0 +1,20 @@
+<toolset scriptid="custtoolset_salesorders">
+    <name>Sales Order Creation Tools</name>
+    <scriptfile>[/SuiteScripts/CreateRecordFromFile_app/salesorders.js]</scriptfile>
+    <rpcschema>[/SuiteScripts/CreateRecordFromFile_app/salesorders_schema.json]</rpcschema>
+    <exposetoaiconnector>T</exposetoaiconnector>
+    <permissions>
+        <permission>
+            <permkey>TRAN_SALESORD</permkey>
+            <permlevel>CREATE</permlevel>
+        </permission>
+        <permission>
+            <permkey>LIST_CUSTJOB</permkey>
+            <permlevel>VIEW</permlevel>
+        </permission>
+        <permission>
+            <permkey>LIST_ITEM</permkey>
+            <permlevel>VIEW</permlevel>
+        </permission>
+    </permissions>
+</toolset>

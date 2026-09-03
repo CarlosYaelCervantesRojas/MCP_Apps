@@ -1,0 +1,16 @@
+<toolset scriptid="custtoolset_lookup">
+    <name>Sales Order Lookup Tools</name>
+    <scriptfile>[/SuiteScripts/CreateRecordFromFile_app/lookup.js]</scriptfile>
+    <rpcschema>[/SuiteScripts/CreateRecordFromFile_app/lookup_schema.json]</rpcschema>
+    <exposetoaiconnector>T</exposetoaiconnector>
+    <permissions>
+        <permission>
+            <permkey>LIST_CUSTJOB</permkey>
+            <permlevel>VIEW</permlevel>
+        </permission>
+        <permission>
+            <permkey>LIST_ITEM</permkey>
+            <permlevel>VIEW</permlevel>
+        </permission>
+    </permissions>
+</toolset>
