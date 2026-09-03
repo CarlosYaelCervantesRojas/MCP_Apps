@@ -1,0 +1,18 @@
+{
+    "tools": [
+        {
+            "name": "ns_inventoryBalace",
+            "description": "Fetch inventory balance information",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "itemId": {
+                        "type": "string",
+                        "description": "The internal id of the item to fetch inventory balance for"
+                    }
+                },
+                "required": ["itemId"]
+            }
+        }
+    ]
+}
