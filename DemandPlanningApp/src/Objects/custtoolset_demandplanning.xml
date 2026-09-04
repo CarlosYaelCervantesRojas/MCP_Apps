@@ -4,7 +4,11 @@
     <rpcschema>[/SuiteScripts/DemandPlanning_App/demandplanning_schema.json]</rpcschema>
     <exposetoaiconnector>T</exposetoaiconnector>
     <permissions>
-         <permission>
+        <permission>
+            <permkey>LIST_INBOUNDSHIPMENT</permkey>
+            <permlevel>VIEW</permlevel>
+        </permission>
+        <permission>
             <permkey>TRAN_PURCHORD</permkey>
             <permlevel>VIEW</permlevel>
         </permission>

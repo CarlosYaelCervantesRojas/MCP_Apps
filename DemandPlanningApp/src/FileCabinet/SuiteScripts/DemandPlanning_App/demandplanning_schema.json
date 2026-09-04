@@ -1,14 +1,42 @@
 {
     "tools": [
         {
+            "name": "ns_inboundShipment",
+            "description": "Fetch inbound shipment information, use findItem custom tool to get the internal id of the item, if none item is specified, it will fetch all inbound shipments",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "itemId": {
+                        "type": "string",
+                        "description": "The internal id of the item to fetch inbound shipment for"
+                    }
+                },
+                "required": []
+            }
+        },
+        {
             "name": "ns_inventoryBalace",
-            "description": "Fetch inventory balance information",
+            "description": "Fetch inventory balance information, use findItem custom tool to get the internal id of the item",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "itemId": {
                         "type": "string",
                         "description": "The internal id of the item to fetch inventory balance for"
+                    }
+                },
+                "required": ["itemId"]
+            }
+        },
+        {
+            "name": "ns_forecast",
+            "description": "Fetch forecast information for a given item, use findItem custom tool to get the internal id of the item",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "itemId": {
+                        "type": "string",
+                        "description": "The internal id of the item to fetch forecast for"
                     }
                 },
                 "required": ["itemId"]
