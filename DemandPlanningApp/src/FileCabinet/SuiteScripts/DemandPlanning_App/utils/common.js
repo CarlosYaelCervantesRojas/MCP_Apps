@@ -18,71 +18,106 @@ define(['N/query'],
                 return rows;
             } catch (error) {
                 log.error('Error running query', error);
-                return [];
+                throw error;
             }
         }
 
-        function getLast24Months() {
-            const months = [];
-            const now = new Date();
-            const start = new Date(now.getFullYear(), now.getMonth() - 23, 1);
-            for (let i = 0; i < 24; i++) {
-                const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
-                const year = d.getFullYear();
-                const month = String(d.getMonth() + 1).padStart(2, '0');
-                months.push(`${year}-${month}`);
-            }
-            return months;
+        function standardizeDataset(itemId, itemName, rawInventory, rawForecast, rawOLT, rawInbound) {
+
+            const months = rawForecast.map(r => normalizeMonth(r.salesmonth));
+            const quantities = rawForecast.map(r => Number(r.qtysold));
+            const averageMonthlyDemand = average(quantities);
+
+            const leadTimeMonthly = rawOLT.map(r => ({
+                month: r.order_month,
+                avgDays: Number(r.avg_days_to_receive)
+            }));
+            const averageLeadTimeDays = average(leadTimeMonthly.map(r => r.avgDays));
+
+            const locations = rawInventory.locations.map(loc => ({
+                locationName: loc.locationName,
+                quantityOnHand: Number(loc.quantityOnHand),
+                committedQty: Number(loc.committedQty),
+                onOrderQty: Number(loc.onOrderQty)
+            }));
+
+            const totals = locations.reduce((acc, loc) => {
+                acc.onHand += loc.quantityOnHand;
+                acc.committed += loc.committedQty;
+                acc.onOrder += loc.onOrderQty;
+                return acc;
+            }, { onHand: 0, committed: 0, onOrder: 0 });
+
+            const shipments = (rawInbound.shipments || []).map(s => ({
+                shipmentNumber: s.shipmentnumber,
+                status: s.shipmentstatus,
+                expectedDeliveryDate: s.expecteddeliverydate,
+                quantityRemaining: Number(s.quantityremaining)
+            }));
+
+            const totalQtyRemaining = shipments.reduce((sum, s) => sum + s.quantityRemaining, 0);
+
+            return {
+                itemId: itemId,
+                itemName: itemName,
+                generatedAt: new Date().toISOString().slice(0, 10),
+                salesHistory: {
+                    months: months,
+                    quantities: quantities,
+                    averageMonthlyDemand: averageMonthlyDemand
+                },
+                leadTime: {
+                    monthly: leadTimeMonthly,
+                    averageDays: averageLeadTimeDays
+                },
+                inventory: {
+                    locations: locations,
+                    totals: totals
+                },
+                inboundShipments: {
+                    count: shipments.length,
+                    totalQtyRemaining: totalQtyRemaining,
+                    shipments: shipments
+                }
+            };
         }
 
-        function buildMonthlySeries(salesRows) {
-            const months = getLast24Months();
-            const byMonth = {};
-
-            salesRows.forEach(row => {
-                const d = new Date(row.salesmonth);
-                const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                byMonth[key] = (byMonth[key] || 0) + Number(row.qtysold);
-            });
-
-            return months.map(m => byMonth[m] || 0);
+        function normalizeMonth(dateStr) {
+            const d = new Date(dateStr);
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
         }
 
-        function linearRegression(yValues) {
-            const n = yValues.length;
-            const xValues = yValues.map((_, i) => i);
-
-            const sumX = xValues.reduce((a, b) => a + b, 0);
-            const sumY = yValues.reduce((a, b) => a + b, 0);
-            const sumXY = xValues.reduce((sum, x, i) => sum + x * yValues[i], 0);
-            const sumX2 = xValues.reduce((sum, x) => sum + x * x, 0);
-
-            const denominator = (n * sumX2) - (sumX * sumX);
-            const slope = denominator === 0 ? 0 : ((n * sumXY) - (sumX * sumY)) / denominator;
-            const intercept = (sumY - (slope * sumX)) / n;
-
-            return { slope: slope, intercept: intercept };
+        function average(arr) {
+            if (!arr || arr.length === 0) return 0;
+            return arr.reduce((a, b) => a + b, 0) / arr.length;
         }
 
-        function forecastNextMonths(salesRows, monthsAhead) {
-            const series = buildMonthlySeries(salesRows);
-            const regression = linearRegression(series);
 
-            const forecast = [];
-            for (let i = 0; i < monthsAhead; i++) {
-                const x = series.length + i;
-                const predicted = (regression.slope * x) + regression.intercept;
-                forecast.push(Math.max(predicted, 0));
-            }
-            return forecast;
+
+        function unitPerDay(monthlyDemand) {
+            return monthlyDemand / 30;
         }
 
+        function calculateSafetyStock(dailyUsage, avgOLT) {
+            return (dailyUsage * avgOLT) / 2;
+        }
+
+        function calculateReorderPoint(monthlyDemand, safetyStock) {
+            return monthlyDemand + safetyStock;
+        }
+
+        function calculateSuggestedOrderQty(reorderPoint, onHand, onOrder, committed) {
+            const available = onHand + onOrder - committed;
+            return Math.max(reorderPoint - available, 0);
+        }
+        
         return {
             runQuery: runQuery,
-            getLast24Months: getLast24Months,
-            buildMonthlySeries: buildMonthlySeries,
-            linearRegression: linearRegression,
-            forecastNextMonths: forecastNextMonths
+            standardizeDataset: standardizeDataset,
+            unitPerDay: unitPerDay,
+            calculateSafetyStock: calculateSafetyStock,
+            calculateReorderPoint: calculateReorderPoint,
+            calculateSuggestedOrderQty: calculateSuggestedOrderQty
         };
 
     });

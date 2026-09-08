@@ -80,7 +80,60 @@ define(['N/query'],
                     JOIN InboundShipmentItem isi ON ist.id = isi.inboundShipment 
                     JOIN transactionLine tl ON tl.uniquekey = isi.shipmentItemTransaction
                     WHERE ist.shipmentStatus = 'toBeShipped'
-                    ${itemId ? ` AND tl.item = ?` : ''}`)
-        };
-
+                    ${itemId ? ` AND tl.item = ?` : ''}`),
+            avgReceiveItemTwoYearsHistory: `
+                SELECT
+                    BUILTIN.DF(pol.item) AS item,
+                    TO_CHAR(po.trandate, 'YYYY-MM') AS order_month,
+                    ROUND(
+                        AVG(
+                            full_receipt.full_receipt_date - po.trandate
+                        ),
+                        1
+                    ) AS avg_days_to_receive
+                FROM
+                    Transaction po
+                INNER JOIN
+                    TransactionLine pol
+                        ON pol.transaction = po.id
+                        AND pol.mainline = 'F'
+                        AND pol.item IS NOT NULL
+                INNER JOIN (
+                    SELECT
+                        irl.createdfrom AS po_id,
+                        irl.item        AS item,
+                        MAX(ir.trandate) AS full_receipt_date,
+                        SUM(ABS(irl.quantity)) AS total_received_qty
+                    FROM
+                        Transaction ir
+                    INNER JOIN
+                        TransactionLine irl
+                            ON irl.transaction = ir.id
+                            AND irl.mainline = 'F'
+                            AND irl.item IS NOT NULL
+                    WHERE
+                        ir.type = 'ItemRcpt'
+                    GROUP BY
+                        irl.createdfrom,
+                        irl.item
+                ) full_receipt
+                    ON full_receipt.po_id = po.id
+                    AND full_receipt.item = pol.item
+                WHERE
+                    po.type = 'PurchOrd'
+                    AND po.trandate >= ADD_MONTHS(TRUNC(SYSDATE), -24)
+                    /*
+                     * Only include PO lines where the full ordered
+                     * quantity has been received.
+                     */
+                    AND full_receipt.total_received_qty >= ABS(pol.quantity)
+                	AND pol.item = ?
+                GROUP BY
+                    pol.item,
+                    BUILTIN.DF(pol.item),
+                    TO_CHAR(po.trandate, 'YYYY-MM')
+                ORDER BY
+                    BUILTIN.DF(pol.item),
+                    TO_CHAR(po.trandate, 'YYYY-MM')`
+        }
     });

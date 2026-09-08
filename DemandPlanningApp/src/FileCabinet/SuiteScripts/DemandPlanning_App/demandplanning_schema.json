@@ -25,7 +25,9 @@
                         "description": "The internal id of the item to fetch inventory balance for"
                     }
                 },
-                "required": ["itemId"]
+                "required": [
+                    "itemId"
+                ]
             }
         },
         {
@@ -39,7 +41,57 @@
                         "description": "The internal id of the item to fetch forecast for"
                     }
                 },
-                "required": ["itemId"]
+                "required": [
+                    "itemId"
+                ]
+            }
+        },
+        {
+            "name": "ns_OLT",
+            "description": "Fetch OLT information for a given item, use findItem custom tool to get the internal id of the item",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "itemId": {
+                        "type": "string",
+                        "description": "The internal id of the item to fetch OLT for"
+                    }
+                },
+                "required": [
+                    "itemId"
+                ]
+            }
+        },
+        {
+            "name": "ns_getStandardDataset",
+            "description": "Fetch all information for a given item, use findItem custom tool to get the internal id of the item",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "itemId": {
+                        "type": "string",
+                        "description": "The internal id of the item to fetch all information for"
+                    }
+                },
+                "required": [
+                    "itemId"
+                ]
+            }
+        },
+        {
+            "name": "ns_getReorderPoint",
+            "description": "Calculate Safety Stock, Reorder Point, and Suggested Order Quantity for a given item, use findItem custom tool to get the internal id of the item, used to create a demand planning dataset for a given item",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "itemId": {
+                        "type": "string",
+                        "description": "The internal id of the item"
+                    }
+                },
+                "required": [
+                    "itemId"
+                ]
             }
         }
     ]

@@ -9,6 +9,62 @@ define(['/SuiteScripts/DemandPlanning_App/utils/suiteQL', '/SuiteScripts/DemandP
 
     return {
 
+        ns_getReorderPoint: async function (params) {
+            try {
+                const itemId = params.itemId;
+
+                const standardData = await this.ns_getStandardDataset({itemId: itemId});
+
+                const monthlyDemand = standardData.salesHistory.averageMonthlyDemand;
+                const avgOLT = standardData.leadTime.averageDays;
+                const dailyUsage = _.unitPerDay(monthlyDemand);
+
+                const safetyStock = _.calculateSafetyStock(dailyUsage, avgOLT);
+                const reorderPointValue = _.calculateReorderPoint(monthlyDemand, safetyStock);
+
+                const totals = standardData.inventory.totals;
+                const suggestedOrderQty = _.calculateSuggestedOrderQty(
+                    reorderPointValue, totals.onHand, totals.onOrder, totals.committed
+                );
+
+                return {
+                    itemId: itemId,
+                    monthlyDemand: monthlyDemand,
+                    dailyUsage: dailyUsage,
+                    averageOLT: avgOLT,
+                    safetyStock: safetyStock,
+                    reorderPoint: reorderPointValue,
+                    currentOnHand: totals.onHand,
+                    currentOnOrder: totals.onOrder,
+                    currentCommitted: totals.committed,
+                    currentAvailable: totals.onHand + totals.onOrder - totals.committed,
+                    suggestedOrderQty: suggestedOrderQty
+                };
+
+            } catch (error) {
+                log.error('Error calculating reorder point', error);
+                throw error;
+            }
+        },
+
+        ns_getStandardDataset: async function (params) {
+            try {
+                const itemId = params.itemId;
+
+                const [inventory, forecast, olt, inbound] = await Promise.all([
+                    this.ns_inventoryBalace({ itemId: itemId }),
+                    this.ns_forecast({ itemId: itemId }),
+                    this.ns_OLT({ itemId: itemId }),
+                    this.ns_inboundShipment({ itemId: itemId })
+                ]);
+
+                return _.standardizeDataset(itemId, params.itemName, inventory, forecast, olt, inbound);
+            } catch (error) {
+                log.error('Error occurred while fetching standard dataset', error);
+                throw error;
+            }
+        },
+
         ns_inboundShipment: async function (params) {
             try {
                 const itemId = params.itemId || null;
@@ -62,16 +118,20 @@ define(['/SuiteScripts/DemandPlanning_App/utils/suiteQL', '/SuiteScripts/DemandP
         ns_forecast: async function (params) {
             try {
                 const salesHistory = await _.runQuery(SQL.forecast.monthlySales, [params.itemId]);
-                const monthsAhead = params.monthsAhead || 12;
-                const forecastQty = _.forecastNextMonths(salesHistory, monthsAhead);
 
-                return {
-                    itemId: params.itemId,
-                    historyMonths: _.buildMonthlySeries(salesHistory),
-                    forecastMonths: forecastQty.map(qty => Math.round(qty))
-                }
+                return salesHistory;
             } catch (error) {
                 log.error('Error occurred while fetching forecast', error);
+                throw error;
+            }
+        },
+
+        ns_OLT: async function (params) {
+            try {
+                const oltData = await _.runQuery(SQL.avgReceiveItemTwoYearsHistory, [params.itemId]);
+                return oltData;
+            } catch (error) {
+                log.error('Error occurred while fetching OLT data', error);
                 throw error;
             }
         }

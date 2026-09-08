@@ -20,5 +20,9 @@
             <permkey>LIST_ITEM</permkey>
             <permlevel>VIEW</permlevel>
         </permission>
+        <permission>
+            <permkey>TRAN_ITEMRCPT</permkey>
+            <permlevel>VIEW</permlevel>
+        </permission>
     </permissions>
 </toolset>
