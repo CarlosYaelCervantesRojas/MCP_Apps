@@ -93,6 +93,45 @@
                     "itemId"
                 ]
             }
+        },
+        {
+            "name": "ns_getWeeklyProjection",
+            "description": "Week-by-week inventory projection for an item, factoring in known inbound shipment arrivals, to calculate the amount needed to order right now (matches the Excel demand planner's rolling projection logic).",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "itemId": {
+                        "type": "string",
+                        "description": "The internal id of the item"
+                    },
+                    "weeksAhead": {
+                        "type": "number",
+                        "description": "Number of weeks to project forward. Defaults to 27 (matching the Excel)."
+                    }
+                },
+                "required": [
+                    "itemId"
+                ]
+            }
+        },
+        {
+            "name": "ns_demandPlanView",
+            "description": "Interactive view of the demand plan for an item: on-hand by location, on-order, safety stock, and reorder point.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "itemId": {
+                        "type": "string",
+                        "description": "Internal id of the item to display"
+                    }
+                },
+                "required": []
+            },
+            "_meta": {
+                "ui": {
+                    "resourceUri": "ui://SuiteScripts/DemandPlanning_App/ui/demand-plan-view.html"
+                }
+            }
         }
     ]
 }

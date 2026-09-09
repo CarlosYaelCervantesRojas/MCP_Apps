@@ -5,15 +5,67 @@
  * @NScriptType CustomTool
  */
 
-define(['/SuiteScripts/DemandPlanning_App/utils/suiteQL', '/SuiteScripts/DemandPlanning_App/utils/common'], function (SQL, _) {
+define([
+        '/SuiteScripts/DemandPlanning_App/utils/suiteQL',
+        '/SuiteScripts/DemandPlanning_App/utils/common',
+        '/SuiteScripts/DemandPlanning_App/utils/weeklyProjection'
+    ], function (SQL, _, weeklyProjection) {
 
     return {
+
+        ns_demandPlanView: async function (params) {
+            return { itemId: params.itemId || null };
+        },
+
+        ns_getWeeklyProjection: async function (params) {
+            try {
+                const itemId = params.itemId;
+                const numberOfWeeks = params.weeksAhead || 27;
+
+                const [standardData, reorderData] = await Promise.all([
+                    this.ns_getStandardDataset({ itemId: itemId }),
+                    this.ns_getReorderPoint({ itemId: itemId })
+                ]);
+
+                const today = new Date();
+                const inboundShipments = standardData.inboundShipments.shipments;
+                const onHandToday = standardData.inventory.totals.onHand;
+                const weeklyDemand = reorderData.dailyUsage * 7;
+
+                const projection = weeklyProjection.projectInventory(
+                    onHandToday, weeklyDemand, inboundShipments, numberOfWeeks, today
+                );
+
+                const decisionPoint = weeklyProjection.calculateAmountNeeded(
+                    projection, reorderData.reorderPoint, reorderData.averageOLT
+                );
+
+                return {
+                    itemId: itemId,
+                    asOfDate: today.toISOString().slice(0, 10),
+                    weeksProjected: numberOfWeeks,
+                    inputs: {
+                        onHandToday: onHandToday,
+                        weeklyDemand: weeklyDemand,
+                        reorderPoint: reorderData.reorderPoint,
+                        averageOLT: reorderData.averageOLT
+                    },
+                    projection: projection,
+                    decisionPoint: decisionPoint
+                };
+
+            } catch (error) {
+                log.error('Error calculating weekly projection', error);
+                throw error;
+            }
+        },
+
 
         ns_getReorderPoint: async function (params) {
             try {
                 const itemId = params.itemId;
 
-                const standardData = await this.ns_getStandardDataset({itemId: itemId});
+                const standardData = await this.ns_getStandardDataset({ itemId: itemId });
 
                 const monthlyDemand = standardData.salesHistory.averageMonthlyDemand;
                 const avgOLT = standardData.leadTime.averageDays;
