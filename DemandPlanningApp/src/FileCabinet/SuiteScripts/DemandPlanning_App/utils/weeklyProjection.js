@@ -21,15 +21,15 @@ define([], function () {
 
         let arrivals = inboundShipments
             .filter(s => {
-                const d = new Date(s.expecteddeliverydate);
+                const d = new Date(s.expectedDeliveryDate);
                 return d >= weekStart && d < weekEnd;
             })
-            .reduce((sum, s) => sum + Number(s.quantityremaining), 0);
+            .reduce((sum, s) => sum + Number(s.quantityRemaining), 0);
 
         if (weekNumber === 1) {
             const pastDue = inboundShipments
-                .filter(s => new Date(s.expecteddeliverydate) < today)
-                .reduce((sum, s) => sum + Number(s.quantityremaining), 0);
+                .filter(s => new Date(s.expectedDeliveryDate) < today)
+                .reduce((sum, s) => sum + Number(s.quantityRemaining), 0);
             arrivals += pastDue;
         }
 
@@ -58,21 +58,22 @@ define([], function () {
     }
 
     function calculateAmountNeeded(projection, reorderPoint, avgOLT) {
-        const oltWeek = Math.max(1, Math.round(avgOLT / 7));
+        const oltWeek = Math.max(1, Math.ceil(avgOLT / 7));
         const point = projection[oltWeek - 1] || projection[projection.length - 1];
 
         const balanceAtOLT = point.balance;
-        const arrivalsAfterOLT = projection
-            .slice(oltWeek)
-            .reduce((sum, p) => sum + p.arrivals, 0);
 
-        const amountNeeded = reorderPoint - (balanceAtOLT + arrivalsAfterOLT);
+        // Only supply available by the OLT decision point can protect
+        // inventory during the current replenishment cycle. Arrivals after
+        // OLT belong to later planning horizons and must not reduce the
+        // quantity we need to order today.
+        const amountNeeded = reorderPoint - balanceAtOLT;
 
         return {
             oltWeek: oltWeek,
             oltDate: point.weekStart,
             balanceAtOLT: balanceAtOLT,
-            arrivalsAfterOLT: arrivalsAfterOLT,
+            arrivalsAfterOLT: 0,
             amountNeeded: Math.round(amountNeeded),
             suggestedOrderQty: Math.max(Math.round(amountNeeded), 0)
         };

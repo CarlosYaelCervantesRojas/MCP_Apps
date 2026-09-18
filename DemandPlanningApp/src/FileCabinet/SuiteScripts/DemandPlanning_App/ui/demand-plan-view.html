@@ -323,7 +323,7 @@ container holding the app. Specify either width or maxWidth, and either height o
         <span class="value">${je(d.balanceAtOLT)}</span>
       </div>
       <div class="summary-item">
-        <span class="label">Arriving After OLT</span>
+        <span class="label">Future Arrivals Excluded</span>
         <span class="value">${je(d.arrivalsAfterOLT)}</span>
       </div>
       <div class="summary-item highlight ${$}">
@@ -331,7 +331,7 @@ container holding the app. Specify either width or maxWidth, and either height o
         <span class="value">${je(d.suggestedOrderQty)}</span>
       </div>
     </div>
-  `}async function vy(e){if(!e){Ku("No item was provided.");return}if(!(Ag===e&&Wu().querySelector(".loc-table"))){Ag=e,gy();try{let[t,i,o]=await Promise.all([vi.callServerTool({name:"ns_getStandardDataset",arguments:{itemId:e}}),vi.callServerTool({name:"ns_getReorderPoint",arguments:{itemId:e}}),vi.callServerTool({name:"ns_getWeeklyProjection",arguments:{itemId:e}})]);if(t.isError||i.isError||o.isError){Ku("Failed to load demand plan data for this item.");return}let r=Gu(t),n=Gu(i),a=Gu(o);if(!r||!n||!a){Ku("Received an unexpected response shape from the server tools.");return}gR(e,r,n,a)}catch(t){Ku("Error loading demand plan: "+(t&&t.message?t.message:String(t)))}}}vi.ontoolinput=e=>{let t=e&&e.arguments&&e.arguments.itemId;t&&vy(t)};vi.ontoolresult=e=>{if(Ag)return;let t=Gu(e);t&&t.itemId&&vy(t.itemId)};gy();vi.connect(new Bs(window.parent,window.parent));})();
+  `}async function vy(e){if(!e){Ku("No item was provided.");return}if(!(Ag===e&&Wu().querySelector(".loc-table"))){Ag=e,gy();try{let t=await vi.callServerTool({name:"ns_getDemandPlan",arguments:{itemId:e}});if(t.isError){Ku("Failed to load demand plan data for this item.");return}let i=Gu(t);if(!i||!i.standardData||!i.reorderData||!i.weeklyProjection){Ku("Received an unexpected response shape from the server tool.");return}gR(e,i.standardData,i.reorderData,i.weeklyProjection)}catch(t){Ku("Error loading demand plan: "+(t&&t.message?t.message:String(t)))}}}vi.ontoolinput=e=>{let t=e&&e.arguments&&e.arguments.itemId;t&&vy(t)};vi.ontoolresult=e=>{if(Ag)return;let t=Gu(e);t&&t.itemId&&vy(t.itemId)};gy();vi.connect(new Bs(window.parent,window.parent));})();
 /*! Bundled license information:
 
 @modelcontextprotocol/client/dist/src-D_zzAWoS.mjs:

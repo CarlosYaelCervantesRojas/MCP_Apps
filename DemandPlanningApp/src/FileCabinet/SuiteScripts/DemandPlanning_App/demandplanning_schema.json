@@ -2,13 +2,13 @@
     "tools": [
         {
             "name": "ns_inboundShipment",
-            "description": "Fetch inbound shipment information, use findItem custom tool to get the internal id of the item, if none item is specified, it will fetch all inbound shipments",
+            "description": "Fetch inbound shipment lines currently in transit for an item, with expected delivery dates and remaining quantity. Use findItem first to resolve a name/SKU to an internal id. If no itemId is given, returns inbound shipments for ALL items in the account (not filtered to any item list) — this can be a large result set. Typical user phrasing: 'what's in transit for MM011091', 'what inbound shipments are expected for this item', 'when is the next shipment of X arriving'.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "itemId": {
                         "type": "string",
-                        "description": "The internal id of the item to fetch inbound shipment for"
+                        "description": "The internal id of the item to fetch inbound shipment for. Omit to fetch inbound shipments for all items in the account."
                     }
                 },
                 "required": []
@@ -16,7 +16,7 @@
         },
         {
             "name": "ns_inventoryBalace",
-            "description": "Fetch inventory balance information, use findItem custom tool to get the internal id of the item",
+            "description": "Fetch current inventory position for an item, broken down by location: quantity on hand, quantity committed to open sales orders, and quantity on order from open purchase orders. Use findItem first to resolve a name/SKU to an internal id. Typical user phrasing: 'what's the on-hand inventory for MM012302 by location', 'how much of X is committed vs available', 'what's on order for this item'.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -32,7 +32,7 @@
         },
         {
             "name": "ns_forecast",
-            "description": "Fetch forecast information for a given item, use findItem custom tool to get the internal id of the item",
+            "description": "Fetch 24 months of raw historical monthly sales quantities for an item, used as the input for demand calculations elsewhere in this toolset. This returns historical actuals, not a future-looking forecast model. Use findItem first to resolve a name/SKU to an internal id. Typical user phrasing: 'what's the sales history for MM011343', 'show me monthly sales for X over the last two years', 'how much has this item sold recently'.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -48,7 +48,7 @@
         },
         {
             "name": "ns_OLT",
-            "description": "Fetch OLT information for a given item, use findItem custom tool to get the internal id of the item",
+            "description": "Fetch the average order lead time (days between placing a purchase order and fully receiving it) for an item, broken down by order month, calculated from the item's actual purchase order and item receipt history. Use findItem first to resolve a name/SKU to an internal id. Typical user phrasing: 'how long does it take to receive a purchase order for MM011091', 'what's the lead time for this item', 'how long between ordering and receiving X'.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -63,8 +63,28 @@
             }
         },
         {
+            "name": "ns_getDemandPlan",
+            "description": "Fetch the complete demand plan for a single item in one request: inventory position, sales history, lead time, inbound shipments, calculated reorder point and suggested order quantity, and a week-by-week inventory projection. Loads the underlying dataset once, then calculates reorder point and weekly projection from it. Returns a single structured JSON object, not a visual — use ns_demandPlanView instead when the user wants to see the plan rather than have the raw numbers returned. Use findItem first to resolve a name/SKU to an internal id. Typical user phrasing (when raw data is explicitly wanted rather than a visual): 'give me the full demand plan data for MM011343', 'pull all the numbers for this item'.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "itemId": {
+                        "type": "string",
+                        "description": "The internal id of the item"
+                    },
+                    "weeksAhead": {
+                        "type": "number",
+                        "description": "Number of weeks to project forward. Defaults to 27."
+                    }
+                },
+                "required": [
+                    "itemId"
+                ]
+            }
+        },
+        {
             "name": "ns_getStandardDataset",
-            "description": "Fetch all information for a given item, use findItem custom tool to get the internal id of the item",
+            "description": "Fetch the combined raw dataset for an item — inventory by location and totals, 24 months of sales history, average lead time, and inbound shipments — without any reorder point or projection calculation applied. Use findItem first to resolve a name/SKU to an internal id. Typical user phrasing: 'give me everything you have on MM011091 but not the calculation', 'show me the raw inputs before the reorder point formula is applied'.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -80,7 +100,7 @@
         },
         {
             "name": "ns_getReorderPoint",
-            "description": "Calculate Safety Stock, Reorder Point, and Suggested Order Quantity for a given item, use findItem custom tool to get the internal id of the item, used to create a demand planning dataset for a given item",
+            "description": "Calculate Safety Stock, Reorder Point, current available quantity, and Suggested Order Quantity for a single item, based on the standard formula (monthly demand plus a lead-time-based safety stock buffer). Loads the standard dataset internally as part of the calculation. Does not include the week-by-week projection — use ns_getWeeklyProjection or ns_getDemandPlan for that. Use findItem first to resolve a name/SKU to an internal id. Typical user phrasing: 'what's the reorder point for MM011343', 'how much safety stock does this item need', 'is this item below its reorder point'.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -96,7 +116,7 @@
         },
         {
             "name": "ns_getWeeklyProjection",
-            "description": "Week-by-week inventory projection for an item, factoring in known inbound shipment arrivals, to calculate the amount needed to order right now (matches the Excel demand planner's rolling projection logic).",
+            "description": "Project a single item's inventory balance week by week (default 27 weeks) factoring in known inbound shipment arrival dates, and identify the amount that would need to be ordered today so the projected balance does not fall below the reorder point by the time a new order would arrive (matches the Excel demand planner's rolling projection logic). Includes the reorder point calculation internally. Use findItem first to resolve a name/SKU to an internal id. Typical user phrasing: 'show me the weekly inventory projection for MM011091', 'when will this item run low based on current trends', 'project inventory for the next 27 weeks'.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -115,8 +135,37 @@
             }
         },
         {
+            "name": "ns_getDemandPlanningItemList",
+            "description": "Return every item (internal id and item name) currently marked for demand planning in the centralized custom record. Takes no input. This is the starting point for any request covering the complete set of demand-planning items, rather than a specific handful named by the user. Typical user phrasing: 'run the full demand plan', 'check all my items', 'what needs to be ordered this week', 'what items are being tracked for demand planning'.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        },
+        {
+            "name": "ns_getBatchDemandPlan",
+            "description": "Run the full demand plan (reorder point + weekly projection) for a list of items in one call, returning raw per-item results as structured data (itemId, itemName, dailyUsage, onHand, reorderPoint, currentAvailable, suggestedOrderQty, status, and the weekly balance array). This tool does not itself produce a formatted table, chart, or file — any summary table or spreadsheet built from its output is assembled by the client, not by this tool. Pass items as a JSON-stringified array, e.g. '[{\"itemId\":\"320\",\"itemName\":\"MM011090\"}]'. Intended to be called repeatedly in small groups (e.g. 10 items at a time) when processing the full demand planning item list, not for the entire list in a single call — a single call with a very large list risks failing partway through with no way to tell which items were processed. Typical user phrasing: 'check these items: MM011091, MM011305, MM011343', 'compare reorder points for these three products'.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "items": {
+                        "type": "string",
+                        "description": "JSON-stringified array of items to process, each with itemId and itemName. Example: [{\"itemId\":\"320\",\"itemName\":\"MM011090\"},{\"itemId\":\"321\",\"itemName\":\"MM011091\"}]"
+                    },
+                    "weeksAhead": {
+                        "type": "number",
+                        "description": "Number of weeks to project forward. Defaults to 27."
+                    }
+                },
+                "required": [
+                    "items"
+                ]
+            }
+        },
+        {
             "name": "ns_demandPlanView",
-            "description": "Interactive view of the demand plan for an item: on-hand by location, on-order, safety stock, and reorder point.",
+            "description": "Render an interactive visual view of the demand plan for a single item: inventory by location, on-order quantity, safety stock, reorder point, and a chart of the week-by-week inventory projection. Use this — not ns_getDemandPlan — whenever a user asks to see or view the demand plan for one specific item rather than asking for raw numbers. Use findItem first to resolve a name/SKU to an internal id. Typical user phrasing: 'show me the demand plan for MM011343', 'how much should I order for this item', 'is MM011091 below its reorder point'.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -125,7 +174,9 @@
                         "description": "Internal id of the item to display"
                     }
                 },
-                "required": []
+                "required": [
+                    "itemId"
+                ]
             },
             "_meta": {
                 "ui": {

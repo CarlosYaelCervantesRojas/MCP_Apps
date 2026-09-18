@@ -8,11 +8,13 @@ define(['N/query'],
     (query) => {
 
         return {
-            defaultItems: `
-                SELECT id internalId, itemId name, description
-                FROM item 
-                WHERE (itemId LIKE 'MM%' OR itemId LIKE 'SB%')
-                AND isInactive = 'F';`,
+            demandPlanningItemList: `
+                SELECT custrecord_items_include_dp 
+                FROM customrecord_demmand_planning_items 
+                WHERE recordid = 1;`,
+            demandPlanningItemListWithName: (itemIds) => (`
+                SELECT id, itemid AS itemName FROM item WHERE id IN (${itemIds})
+                `),
             locations: `
                 SELECT id internalId, name
                 FROM location 
@@ -30,19 +32,24 @@ define(['N/query'],
                     WHERE i.id = ?
                     GROUP BY i.itemId, l.name`,
                 itemOnOrder: `
-                    SELECT 
+                    SELECT
                         l.id AS locationId,
                         l.name AS locationName,
-                        SUM(tl.quantity - NVL(tl.quantityshiprecv, 0)) AS onOrderQty
+                        SUM(
+                            NVL(tl.quantity, 0) -
+                            NVL(tl.quantityShipRecv, 0)
+                        ) AS onOrderQty
                     FROM transaction t
                     JOIN transactionline tl ON tl.transaction = t.id
-                    JOIN item i ON i.id = tl.item
                     JOIN location l ON tl.location = l.id
                     WHERE t.type = 'PurchOrd'
                       AND tl.mainline = 'F'
                       AND tl.item = ?
-                      AND tl.quantity != tl.quantityShipRecv
-                      AND t.status NOT IN ('Purchase Order:Closed', 'Purchase Order:Fully Billed')
+                      AND NVL(tl.isclosed, 'F') = 'F'
+                      AND (
+                          NVL(tl.quantity, 0) -
+                          NVL(tl.quantityShipRecv, 0)
+                      ) > 0
                     GROUP BY l.id, l.name;`,
             },
             forecast: {
@@ -58,6 +65,7 @@ define(['N/query'],
                       AND tl.item = ?
                       AND t.voided = 'F'
                       AND t.trandate >= ADD_MONTHS(TRUNC(SYSDATE, 'MM'), -24)
+                      AND t.trandate < TRUNC(SYSDATE, 'MM')
                     GROUP BY tl.item, TRUNC(t.trandate, 'MM')
                     ORDER BY salesmonth`
             },
@@ -79,7 +87,15 @@ define(['N/query'],
                     FROM InboundShipment ist
                     JOIN InboundShipmentItem isi ON ist.id = isi.inboundShipment 
                     JOIN transactionLine tl ON tl.uniquekey = isi.shipmentItemTransaction
-                    WHERE ist.shipmentStatus = 'toBeShipped'
+                    WHERE ist.shipmentStatus IN (
+                        'toBeShipped',
+                        'inTransit',
+                        'partiallyReceived'
+                    )
+                    AND (
+                        NVL(isi.quantityExpected, 0) -
+                        NVL(isi.quantityReceived, 0)
+                    ) > 0
                     ${itemId ? ` AND tl.item = ?` : ''}`),
             avgReceiveItemTwoYearsHistory: `
                 SELECT

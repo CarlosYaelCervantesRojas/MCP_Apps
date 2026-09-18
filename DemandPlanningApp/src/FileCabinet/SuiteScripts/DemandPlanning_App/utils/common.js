@@ -22,10 +22,30 @@ define(['N/query'],
             }
         }
 
+        const parseItemIdList = (rawResult) => {
+            if (!rawResult || rawResult.length === 0) return [];
+            const raw = rawResult[0].custrecord_items_include_dp;
+            if (!raw) return [];
+            return raw.split(',').map(id => id.trim()).filter(id => id).map(id => Number(id));
+        }
+
         function standardizeDataset(itemId, itemName, rawInventory, rawForecast, rawOLT, rawInbound) {
 
-            const months = rawForecast.map(r => normalizeMonth(r.salesmonth));
-            const quantities = rawForecast.map(r => Number(r.qtysold));
+            // The SQL returns the previous 24 complete calendar months.
+            // Missing months must count as zero demand; otherwise the average
+            // would be calculated only over months in which the item sold.
+            const monthlySales = new Map(
+                rawForecast.map(r => [
+                    normalizeMonth(r.salesmonth),
+                    Number(r.qtysold) || 0
+                ])
+            );
+
+            const completeMonths = getPreviousCompleteMonths(24);
+            const months = completeMonths.map(month => month.key);
+            const quantities = completeMonths.map(month =>
+                monthlySales.get(month.key) || 0
+            );
             const averageMonthlyDemand = average(quantities);
 
             const leadTimeMonthly = rawOLT.map(r => ({
@@ -82,6 +102,28 @@ define(['N/query'],
             };
         }
 
+        function getPreviousCompleteMonths(count) {
+            const result = [];
+            const now = new Date();
+            const currentMonthStart = new Date(
+                now.getFullYear(),
+                now.getMonth(),
+                1
+            );
+
+            for (let i = count; i >= 1; i--) {
+                const date = new Date(
+                    currentMonthStart.getFullYear(),
+                    currentMonthStart.getMonth() - i,
+                    1
+                );
+                const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                result.push({ key: key });
+            }
+
+            return result;
+        }
+
         function normalizeMonth(dateStr) {
             const d = new Date(dateStr);
             return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -113,6 +155,7 @@ define(['N/query'],
         
         return {
             runQuery: runQuery,
+            parseItemIdList: parseItemIdList,
             standardizeDataset: standardizeDataset,
             unitPerDay: unitPerDay,
             calculateSafetyStock: calculateSafetyStock,
